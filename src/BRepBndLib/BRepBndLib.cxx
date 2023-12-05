@@ -47,7 +47,7 @@
 //
 static Standard_Boolean CanUseEdges(const Adaptor3d_Surface& BS);
 //
-static void FindExactUVBounds(const TopoDS_Face F, 
+static void FindExactUVBounds(const TopoDS_Face& F, 
                               Standard_Real& umin, Standard_Real& umax, 
                               Standard_Real& vmin, Standard_Real& vmax,
                               const Standard_Real Tol, 
@@ -127,6 +127,14 @@ void BRepBndLib::Add(const TopoDS_Shape& S, Bnd_Box& B, Standard_Boolean useTria
   for (ex.Init(S,TopAbs_EDGE,TopAbs_FACE); ex.More(); ex.Next())
   {
     const TopoDS_Edge& E = TopoDS::Edge(ex.Current());
+ 
+    if (!useTriangulation && BRep_Tool::IsGeometric(E))
+    {
+      BC.Initialize(E);
+      BndLib_Add3dCurve::Add(BC, BRep_Tool::Tolerance(E), B);
+      continue;
+    }
+
     Handle(Poly_Polygon3D) P3d = BRep_Tool::Polygon3D(E, l);
     if (!P3d.IsNull() && P3d->NbNodes() > 0)
     {
@@ -143,7 +151,7 @@ void BRepBndLib::Add(const TopoDS_Shape& S, Bnd_Box& B, Standard_Boolean useTria
     else
     {
       BRep_Tool::PolygonOnTriangulation(E, Poly, T, l);
-      if (useTriangulation && !Poly.IsNull() && !T.IsNull() && T->NbNodes() > 0)
+      if (!Poly.IsNull() && !T.IsNull() && T->NbNodes() > 0)
       {
         const TColStd_Array1OfInteger& Indices = Poly->Nodes();
         nbNodes = Indices.Length();
@@ -452,7 +460,7 @@ Standard_Boolean CanUseEdges(const Adaptor3d_Surface& BS)
 //function : FindExactUVBounds
 //purpose  : 
 //=======================================================================
-void FindExactUVBounds(const TopoDS_Face FF, 
+void FindExactUVBounds(const TopoDS_Face& FF, 
                        Standard_Real& umin, Standard_Real& umax, 
                        Standard_Real& vmin, Standard_Real& vmax,
                        const Standard_Real Tol, 

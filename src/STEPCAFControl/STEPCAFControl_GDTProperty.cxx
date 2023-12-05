@@ -1166,7 +1166,7 @@ Handle(StepDimTol_HArray1OfDatumReferenceModifier) STEPCAFControl_GDTProperty::
   GetDatumRefModifiers(const XCAFDimTolObjects_DatumModifiersSequence& theModifiers,
                        const XCAFDimTolObjects_DatumModifWithValue& theModifWithVal,
                        const Standard_Real theValue,
-                       const StepBasic_Unit theUnit)
+                       const StepBasic_Unit& theUnit)
 {
   if ((theModifiers.Length() == 0) && (theModifWithVal == XCAFDimTolObjects_DatumModifWithValue_None))
     return NULL;
@@ -1307,8 +1307,9 @@ Handle(TCollection_HAsciiString) STEPCAFControl_GDTProperty::GetTolValueType(con
 //function : GetTessellation
 //purpose  : 
 //=======================================================================
-Handle(StepVisual_TessellatedGeometricSet) STEPCAFControl_GDTProperty::GetTessellation(const TopoDS_Shape theShape)
+Handle(StepVisual_TessellatedGeometricSet) STEPCAFControl_GDTProperty::GetTessellation(const TopoDS_Shape& theShape)
 {
+  Handle(StepVisual_TessellatedGeometricSet) aGeomSet;
   // Build coordinate list and curves
   NCollection_Handle<StepVisual_VectorOfHSequenceOfInteger> aCurves = new StepVisual_VectorOfHSequenceOfInteger;
   NCollection_Vector<gp_XYZ> aCoords;
@@ -1342,6 +1343,11 @@ Handle(StepVisual_TessellatedGeometricSet) STEPCAFControl_GDTProperty::GetTessel
     aCurves->Append(aCurve);
   }
 
+  if (!aCoords.Length())
+  {
+    return aGeomSet;
+  }
+
   Handle(TColgp_HArray1OfXYZ) aPoints = new TColgp_HArray1OfXYZ(1, aCoords.Length());
   for (Standard_Integer i = 1; i <= aPoints->Length(); i++) {
     aPoints->SetValue(i, aCoords.Value(i - 1));
@@ -1353,7 +1359,7 @@ Handle(StepVisual_TessellatedGeometricSet) STEPCAFControl_GDTProperty::GetTessel
   aCurveSet->Init(new TCollection_HAsciiString(), aCoordList, aCurves);
   NCollection_Handle<StepVisual_Array1OfTessellatedItem> aTessItems = new StepVisual_Array1OfTessellatedItem(1, 1);
   aTessItems->SetValue(1, aCurveSet);
-  Handle(StepVisual_TessellatedGeometricSet) aGeomSet = new StepVisual_TessellatedGeometricSet();
+  aGeomSet = new StepVisual_TessellatedGeometricSet();
   aGeomSet->Init(new TCollection_HAsciiString(), aTessItems);
   return aGeomSet;
 }

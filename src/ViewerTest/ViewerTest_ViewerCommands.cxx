@@ -20,6 +20,7 @@
 
 #include <ViewerTest.hxx>
 
+#include <AIS_AnimationAxisRotation.hxx>
 #include <AIS_AnimationCamera.hxx>
 #include <AIS_AnimationObject.hxx>
 #include <AIS_Axis.hxx>
@@ -1469,7 +1470,7 @@ static TCollection_AsciiString FindViewIdByWindowHandle (Aspect_Drawable theWind
 void ActivateView (const TCollection_AsciiString& theViewName,
                    Standard_Boolean theToUpdate = Standard_True)
 {
-  if (const Handle(V3d_View) aView = ViewerTest_myViews.Find1(theViewName))
+  if (const Handle(V3d_View)& aView = ViewerTest_myViews.Find1(theViewName))
   {
     ViewerTest::ActivateView (aView, theToUpdate);
   }
@@ -1482,7 +1483,7 @@ void ActivateView (const TCollection_AsciiString& theViewName,
 void ViewerTest::ActivateView (const Handle(V3d_View)& theView,
                                Standard_Boolean theToUpdate)
 {
-  Handle(V3d_View) aView = theView;
+  const Handle(V3d_View)& aView = theView;
   const TCollection_AsciiString* aViewName = ViewerTest_myViews.Seek2 (aView);
   if (aViewName == nullptr)
   {
@@ -1537,7 +1538,7 @@ void ViewerTest::RemoveView (const Handle(V3d_View)& theView,
     return;
   }
 
-  const TCollection_AsciiString aViewName = ViewerTest_myViews.Find2 (theView);
+  const TCollection_AsciiString& aViewName = ViewerTest_myViews.Find2 (theView);
   RemoveView (aViewName, theToRemoveContext);
 }
 
@@ -7146,7 +7147,7 @@ static Standard_Integer V2DMode (Draw_Interpretor&, Standard_Integer theArgsNb, 
      && anArgCase == "-name")
     {
       ViewerTest_Names aViewNames (theArgVec[++anArgIt]);
-      TCollection_AsciiString aViewName = aViewNames.GetViewName();
+      const TCollection_AsciiString& aViewName = aViewNames.GetViewName();
       if (!ViewerTest_myViews.IsBound1 (aViewName))
       {
         Message::SendFail() << "Syntax error: unknown view '" << theArgVec[anArgIt - 1] << "'";
@@ -7596,6 +7597,11 @@ static Standard_Integer VAnimation (Draw_Interpretor& theDI,
       gp_XYZ        aLocPnts [2] = { aTrsfs[0].TranslationPart(),     aTrsfs[1].TranslationPart() };
       Standard_Real aScales  [2] = { aTrsfs[0].ScaleFactor(),         aTrsfs[1].ScaleFactor() };
       Standard_Boolean isTrsfSet = Standard_False;
+
+      gp_Ax1 anAxis;
+      Standard_Real anAngles[2] = { 0.0, 0.0 };
+      Standard_Boolean isAxisRotationSet = Standard_False;
+
       Standard_Integer aTrsfArgIter = anArgIter + 1;
       for (; aTrsfArgIter < theArgNb; ++aTrsfArgIter)
       {
@@ -7643,13 +7649,45 @@ static Standard_Integer VAnimation (Draw_Interpretor& theDI,
           }
           aScales[anIndex] = aScaleStr.RealValue();
         }
+        else if (aTrsfArg == "-axis")
+        {
+          isAxisRotationSet = Standard_True;
+          gp_XYZ anOrigin, aDirection;
+          if (aTrsfArgIter + 6 >= theArgNb
+          || !parseXYZ (theArgVec + aTrsfArgIter + 1, anOrigin)
+          || !parseXYZ (theArgVec + aTrsfArgIter + 4, aDirection))
+          {
+            Message::SendFail() << "Syntax error at " << aTrsfArg;
+            return 1;
+          }
+          anAxis.SetLocation  (anOrigin);
+          anAxis.SetDirection (aDirection);
+          aTrsfArgIter += 6;
+        }
+        else if (aTrsfArg.StartsWith ("-ang"))
+        {
+          isAxisRotationSet = Standard_True;
+          if (++aTrsfArgIter >= theArgNb)
+          {
+            Message::SendFail() << "Syntax error at " << aTrsfArg;
+            return 1;
+          }
+
+          const TCollection_AsciiString anAngleStr (theArgVec[aTrsfArgIter]);
+          if (!anAngleStr.IsRealValue (Standard_True))
+          {
+            Message::SendFail() << "Syntax error at " << aTrsfArg;
+            return 1;
+          }
+          anAngles[anIndex] = anAngleStr.RealValue();
+        }
         else
         {
           anArgIter = aTrsfArgIter - 1;
           break;
         }
       }
-      if (!isTrsfSet)
+      if (!isTrsfSet && !isAxisRotationSet)
       {
         Message::SendFail() << "Syntax error at " << anArg;
         return 1;
@@ -7658,15 +7696,23 @@ static Standard_Integer VAnimation (Draw_Interpretor& theDI,
       {
         anArgIter = theArgNb;
       }
+      Handle(AIS_BaseAnimationObject) anObjAnimation;
+      if (isTrsfSet)
+      {
+        aTrsfs[0].SetRotation        (aRotQuats[0]);
+        aTrsfs[1].SetRotation        (aRotQuats[1]);
+        aTrsfs[0].SetTranslationPart (aLocPnts[0]);
+        aTrsfs[1].SetTranslationPart (aLocPnts[1]);
+        aTrsfs[0].SetScaleFactor     (aScales[0]);
+        aTrsfs[1].SetScaleFactor     (aScales[1]);
 
-      aTrsfs[0].SetRotation        (aRotQuats[0]);
-      aTrsfs[1].SetRotation        (aRotQuats[1]);
-      aTrsfs[0].SetTranslationPart (aLocPnts[0]);
-      aTrsfs[1].SetTranslationPart (aLocPnts[1]);
-      aTrsfs[0].SetScaleFactor     (aScales[0]);
-      aTrsfs[1].SetScaleFactor     (aScales[1]);
-
-      Handle(AIS_AnimationObject) anObjAnimation = new AIS_AnimationObject (anAnimation->Name(), aCtx, anObject, aTrsfs[0], aTrsfs[1]);
+        anObjAnimation = new AIS_AnimationObject (anAnimation->Name(), aCtx, anObject, aTrsfs[0], aTrsfs[1]);
+      }
+      else
+      {
+        anObjAnimation = new AIS_AnimationAxisRotation (anAnimation->Name(), aCtx, anObject, anAxis,
+                                                        anAngles[0] * (M_PI / 180.0), anAngles[1] * (M_PI / 180.0));
+      }
       replaceAnimation (aParentAnimation, anAnimation, anObjAnimation);
     }
     else if (anArg == "-viewtrsf"
@@ -8796,7 +8842,7 @@ static int VClipPlane (Draw_Interpretor& theDi, Standard_Integer theArgsNb, cons
         else if (!toOverrideGlobal
                && ViewerTest_myViews.IsBound1 (anEntityName))
         {
-          Handle(V3d_View) aView = ViewerTest_myViews.Find1 (anEntityName);
+          const Handle(V3d_View)& aView = ViewerTest_myViews.Find1 (anEntityName);
           if (toSet)
           {
             aView->AddClipPlane (aClipPlane);
@@ -13865,6 +13911,73 @@ static int VSelBvhBuild (Draw_Interpretor& /*theDI*/, Standard_Integer theNbArgs
 }
 
 //=======================================================================
+//function : VChangeMouseGesture
+//purpose  :
+//=======================================================================
+static int VChangeMouseGesture (Draw_Interpretor&,
+                                Standard_Integer  theArgsNb,
+                                const char**      theArgVec)
+{
+  Handle(V3d_View) aView = ViewerTest::CurrentView();
+  if (aView.IsNull())
+  {
+    Message::SendFail ("Error: no active viewer");
+    return 1;
+  }
+
+  NCollection_DoubleMap<TCollection_AsciiString, AIS_MouseGesture> aGestureMap;
+  {
+    aGestureMap.Bind ("none",            AIS_MouseGesture_NONE);
+    aGestureMap.Bind ("selectrectangle", AIS_MouseGesture_SelectRectangle);
+    aGestureMap.Bind ("selectlasso",     AIS_MouseGesture_SelectLasso);
+    aGestureMap.Bind ("zoom",            AIS_MouseGesture_Zoom);
+    aGestureMap.Bind ("zoomwindow",      AIS_MouseGesture_ZoomWindow);
+    aGestureMap.Bind ("pan",             AIS_MouseGesture_Pan);
+    aGestureMap.Bind ("rotateorbit",     AIS_MouseGesture_RotateOrbit);
+    aGestureMap.Bind ("rotateview",      AIS_MouseGesture_RotateView);
+    aGestureMap.Bind ("drag",            AIS_MouseGesture_Drag);
+  }
+  NCollection_DoubleMap<TCollection_AsciiString, Standard_UInteger> aMouseButtonMap;
+  {
+    aMouseButtonMap.Bind ("none",   (Standard_UInteger )Aspect_VKeyMouse_NONE);
+    aMouseButtonMap.Bind ("left",   (Standard_UInteger )Aspect_VKeyMouse_LeftButton);
+    aMouseButtonMap.Bind ("middle", (Standard_UInteger )Aspect_VKeyMouse_MiddleButton);
+    aMouseButtonMap.Bind ("right",  (Standard_UInteger )Aspect_VKeyMouse_RightButton);
+  }
+
+  Standard_UInteger aButton = (Standard_UInteger )Aspect_VKeyMouse_LeftButton;
+  AIS_MouseGesture aGesture = AIS_MouseGesture_RotateOrbit;
+  for (Standard_Integer anArgIter = 1; anArgIter < theArgsNb; ++anArgIter)
+  {
+    Standard_CString        anArg = theArgVec[anArgIter];
+    TCollection_AsciiString anArgCase (anArg);
+    anArgCase.LowerCase();
+    if (anArgCase == "-button")
+    {
+      TCollection_AsciiString aButtonStr = theArgVec[++anArgIter];
+      aButtonStr.LowerCase();
+      aButton = aMouseButtonMap.Find1 (aButtonStr);
+    }
+    else if (anArgCase == "-gesture")
+    {
+      TCollection_AsciiString aGestureStr = theArgVec[++anArgIter];
+      aGestureStr.LowerCase();
+      aGesture = aGestureMap.Find1 (aGestureStr);
+    }
+    else
+    {
+      Message::SendFail() << "Error: unknown argument '" << anArg << "'";
+      return 1;
+    }
+  }
+
+  Handle(ViewerTest_EventManager) aViewMgr = ViewerTest::CurrentEventManager();
+  aViewMgr->ChangeMouseGestureMap().Bind (aButton, aGesture);
+
+  return 0;
+}
+
+//=======================================================================
 //function : ViewerTest_ExitProc
 //purpose  :
 //=======================================================================
@@ -14394,6 +14507,11 @@ Object animation:
  -rotX   object Orientations pair (quaternions)
  -scaleX object Scale factors pair (quaternions)
 
+  vanim name -object [-axis OX OY OZ DX DY DZ] [-ang1 A] [-ang2 A]
+ -axis   rotation axis
+ -ang1   start rotation angle in degrees
+ -ang2   end   rotation angle in degrees
+
 Custom callback:
   vanim name -invoke "Command Arg1 Arg2 %Pts %LocalPts %Normalized ArgN"
 
@@ -14876,4 +14994,12 @@ Turns on/off prebuilding of BVH within background thread(s).
  -nbThreads   number of threads, 1 by default; if < 1 then used (NbLogicalProcessors - 1);
  -wait        waits for building all of BVH.
 )" /* [vselbvhbuild] */);
+
+  addCmd ("vchangemousegesture", VChangeMouseGesture, /* [vchangemousegesture] */ R"(
+vchangemousegesture -button  {none|left|middle|right}=left
+                    -gesture {none|selectRectangle|selectLasso|zoom|zoomWindow|pan|rotateOrbit|rotateView|drag}=rotateOrbit
+Changes the gesture for the mouse button.
+ -button  the mouse button;
+ -gesture the new gesture for the button.
+)" /* [vchangemousegesture] */);
 }

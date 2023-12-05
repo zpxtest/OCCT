@@ -276,6 +276,8 @@ GeomFill_SectionPlacement(const Handle(GeomFill_LocationLaw)& L,
 	      
 	      Standard_Integer NbLocalPnts = 10;
 	      Standard_Integer NbPnts = (NbKnots-1) * NbLocalPnts;
+	      if (NbPnts < 0)
+	        NbPnts = 0;
 	      if (I1 != I2)
 		NbPnts += NbLocalPnts;
 	      if (I3 != I4 && first < BC->Knot(I3))
@@ -607,7 +609,7 @@ void GeomFill_SectionPlacement::Perform(const Handle(Adaptor3d_Curve)& Path,
 			    myAdpSection.LastParameter(),
 			    Path->Resolution(Tol/100), 
 			    myAdpSection.Resolution(Tol/100));
-	  if (Ext.IsDone()) {
+	  if (Ext.IsDone() && !Ext.IsParallel()) {
 	    Extrema_POnCurv P1, P2;
 	    for (ii=1; ii<=Ext.NbExt(); ii++) {
 	      distaux = sqrt (Ext.SquareDistance(ii));

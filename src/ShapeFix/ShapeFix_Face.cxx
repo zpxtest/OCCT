@@ -691,7 +691,7 @@ Standard_Boolean ShapeFix_Face::Perform()
           TopoDS_Shape aCurW = aItW.Value();
           while(aMapReorderedWires.IsBound(aCurW))
           {
-            TopoDS_Shape aFixW = aMapReorderedWires.Find(aCurW);
+            const TopoDS_Shape& aFixW = aMapReorderedWires.Find(aCurW);
             Context()->Replace(aCurW, aFixW);
             aCurW = aFixW;
           }
@@ -715,7 +715,7 @@ Standard_Boolean ShapeFix_Face::Perform()
 
 // Shift all pcurves of edges in the given wire on the given face 
 // to vector <vec>
-static void Shift2dWire(const TopoDS_Wire w, const TopoDS_Face f,
+static void Shift2dWire(const TopoDS_Wire& w, const TopoDS_Face& f,
 			const gp_Vec2d vec, 
                         const Handle(ShapeAnalysis_Surface)& mySurf,
                         Standard_Boolean recompute3d = Standard_False)
@@ -1168,7 +1168,6 @@ Standard_Boolean ShapeFix_Face::FixOrientation(TopTools_DataMapOfShapeListOfShap
     MW.Clear();
     SI.Clear();
     MapIntWires.Clear();
-    Standard_Integer NbOuts=0;
     Standard_Integer i;
 
     NCollection_Array1<Bnd_Box2d> aWireBoxes(1, nb);
@@ -1195,8 +1194,8 @@ Standard_Boolean ShapeFix_Face::FixOrientation(TopTools_DataMapOfShapeListOfShap
           //avoiding problems with segment in Bnd_Box
           gac.Load(cw);
         }
-       else
-         gac.Load(cw,cf,cl);
+        else
+          gac.Load(cw,cf,cl);
        BndLib_Add2dCurve::Add(gac,::Precision::Confusion(),aBox);
       }
 
@@ -1345,7 +1344,6 @@ Standard_Boolean ShapeFix_Face::FixOrientation(TopTools_DataMapOfShapeListOfShap
       else {
         MW.Bind(aw,IntWires);
         if(sta==TopAbs_OUT) {
-          NbOuts++;
           if(staout==TopAbs_IN ) {
             // wire is OUT but InfinitePoint is IN => need to reverse
             ShapeExtend_WireData sewd (aw);
@@ -1375,7 +1373,6 @@ Standard_Boolean ShapeFix_Face::FixOrientation(TopTools_DataMapOfShapeListOfShap
       Standard_Integer tmpi = SI.Find(aw);
       if(tmpi>1) {
         if(!MapIntWires.Contains(aw)) {
-          NbOuts++;
           const TopTools_ListOfShape& IW = MW.Find(aw);
           if(tmpi==3) {
             // wire is OUT but InfinitePoint is IN => need to reverse
@@ -1418,7 +1415,7 @@ Standard_Boolean ShapeFix_Face::FixOrientation(TopTools_DataMapOfShapeListOfShap
     
     if(nb < nbAll) {
       for( i =1; i <= nbAll;i++) {
-        TopoDS_Shape aS2 = allSubShapes.Value(i);
+        const TopoDS_Shape& aS2 = allSubShapes.Value(i);
         if(aS2.ShapeType() != TopAbs_WIRE || 
            (aS2.Orientation() != TopAbs_FORWARD && aS2.Orientation() != TopAbs_REVERSED))
           B.Add ( S,aS2);

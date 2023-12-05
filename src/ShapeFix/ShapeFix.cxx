@@ -89,8 +89,9 @@ Standard_Boolean ShapeFix::SameParameter(const TopoDS_Shape& shape,
   TopExp::MapShapesAndAncestors(shape, TopAbs_EDGE, TopAbs_FACE, aMapEF);
 
   BRep_Builder B;
-  //Standard_Integer nbexcp = 0; 
-  Standard_Integer nbfail = 0,  numedge = 0; 
+#ifdef OCCT_DEBUG
+  Standard_Integer nbfail = 0,  numedge = 0;
+#endif
   Standard_Boolean status = Standard_True;
   Standard_Real tol = preci;
   Standard_Boolean iatol = (tol > 0);
@@ -110,7 +111,9 @@ Standard_Boolean ShapeFix::SameParameter(const TopoDS_Shape& shape,
       TopoDS_Edge E;
       while ( ex.More() && aPS.More() )
       {
+#ifdef OCCT_DEBUG
         numedge ++;
+#endif
         int ierr = 0;
         TopLoc_Location loc;
         E = TopoDS::Edge (ex.Current());
@@ -140,7 +143,13 @@ Standard_Boolean ShapeFix::SameParameter(const TopoDS_Shape& shape,
           sfe->FixSameParameter (E); // K2-SEP97
         }
 
-        if (!BRep_Tool::SameParameter (E)) { ierr = 1; nbfail ++; }
+        if (!BRep_Tool::SameParameter (E))
+        {
+          ierr = 1;
+#ifdef OCCT_DEBUG
+          nbfail ++;
+#endif
+        }
         
         if (ierr)
         {
@@ -356,7 +365,7 @@ static Standard_Real getNearPoint(const TColgp_SequenceOfPnt& aSeq1,
 //purpose  : auxiliary for FixVertexPosition
 //=======================================================================
 static Standard_Boolean getNearestEdges(TopTools_ListOfShape& theLEdges,
-                                        const TopoDS_Vertex theVert,
+                                        const TopoDS_Vertex& theVert,
                                         TopTools_SequenceOfShape& theSuitEdges,
                                         TopTools_SequenceOfShape& theRejectEdges,
                                         const Standard_Real theTolerance,
@@ -505,7 +514,7 @@ Standard_Boolean ShapeFix::FixVertexPosition(TopoDS_Shape& theshape,
     Standard_Integer nV =1;
     TopoDS_Iterator aExp3(aExp1.Current());
     for( ; aExp3.More(); aExp3.Next(),nV++) {
-      TopoDS_Shape aVert =  aExp3.Value();
+      const TopoDS_Shape& aVert =  aExp3.Value();
       if(nV ==1)
         aVert1 = aVert;
       else if(aVert1.IsSame(aVert))
@@ -575,7 +584,7 @@ Standard_Boolean ShapeFix::FixVertexPosition(TopoDS_Shape& theshape,
         
         //Standard_Real dd1 = (acenter - p1.XYZ()).Modulus();
         //Standard_Real dd2 = (acenter - p2.XYZ()).Modulus();
-         if(isFirst) {
+          if(isFirst) {
            if( k>2) {
              acenter += p1.XYZ();
              acenter /= 2.0;

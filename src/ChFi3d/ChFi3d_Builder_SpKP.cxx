@@ -539,7 +539,7 @@ static void FillSD (TopOpeBRepDS_DataStructure& DStr,
 		    const Standard_Boolean      isFirst,
 		    const Standard_Integer      ons,
 		    const Standard_Real         pitol,
-		    const TopoDS_Vertex         bout)
+		    const TopoDS_Vertex&         bout)
      
 {  
   Standard_Integer opp = 3 - ons;
@@ -654,7 +654,7 @@ Standard_Boolean ChFi3d_Builder::SplitKPart
   
   // Cutting of tangency lines (hatching).
   Geom2dHatch_Intersector Inter(pitol,pitol);
-  Geom2dHatch_Hatcher H1(Inter,tol2d,tolesp), H2(Inter,tol2d,tolesp);
+  Geom2dHatch_Hatcher H1(Inter,tol2d,tolapp3d), H2(Inter,tol2d,tolapp3d);
   Standard_Integer ie;
   Handle(Geom2d_Curve) C1 = Data->InterferenceOnS1().PCurveOnFace(); 
   Geom2dAdaptor_Curve  ll1;

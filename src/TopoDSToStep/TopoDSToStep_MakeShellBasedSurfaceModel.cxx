@@ -19,6 +19,7 @@
 #include <MoniTool_DataMapOfShapeTransient.hxx>
 #include <Message_ProgressScope.hxx>
 #include <StdFail_NotDone.hxx>
+#include <StepData_Factors.hxx>
 #include <StepShape_ClosedShell.hxx>
 #include <StepShape_ConnectedFaceSet.hxx>
 #include <StepShape_FaceSurface.hxx>
@@ -51,15 +52,24 @@
 TopoDSToStep_MakeShellBasedSurfaceModel::
   TopoDSToStep_MakeShellBasedSurfaceModel(const TopoDS_Face& aFace,
                                           const Handle(Transfer_FinderProcess)& FP,
+                                          const StepData_Factors& theLocalFactors,
                                           const Message_ProgressRange& theProgress)
 {
   done = Standard_False;
   MoniTool_DataMapOfShapeTransient aMap;
 
-  const Standard_Integer aWriteTessGeom = Interface_Static::IVal("write.step.tessellated");
+  Standard_Integer aWriteTessGeom = Interface_Static::IVal("write.step.tessellated");
+  const Standard_Integer aWriteTessSchema = Interface_Static::IVal("write.step.schema");
+  if (aWriteTessSchema != 5)
+  {
+    aWriteTessGeom = 0;
+    Handle(TransferBRep_ShapeMapper) anErrShape =
+      new TransferBRep_ShapeMapper(aFace);
+    FP->AddWarning(anErrShape, " Tessellation can not be exported into not AP242");
+  }
 
   TopoDSToStep_Tool    aTool(aMap, Standard_False);
-  TopoDSToStep_Builder StepB(aFace, aTool, FP, aWriteTessGeom, theProgress);
+  TopoDSToStep_Builder StepB(aFace, aTool, FP, aWriteTessGeom, theLocalFactors, theProgress);
   if (theProgress.UserBreak())
     return;
 
@@ -102,10 +112,10 @@ TopoDSToStep_MakeShellBasedSurfaceModel::
 //=============================================================================
 // Create a ShellBasedSurfaceModel of StepShape from a Shell of TopoDS
 //=============================================================================
-
 TopoDSToStep_MakeShellBasedSurfaceModel::
   TopoDSToStep_MakeShellBasedSurfaceModel(const TopoDS_Shell& aShell,
                                           const Handle(Transfer_FinderProcess)& FP,
+                                          const StepData_Factors& theLocalFactors,
                                           const Message_ProgressRange& theProgress)
 {
   done = Standard_False;
@@ -115,10 +125,18 @@ TopoDSToStep_MakeShellBasedSurfaceModel::
   Handle(StepShape_ClosedShell)                   aClosedShell;
   MoniTool_DataMapOfShapeTransient                aMap;
 
-  const Standard_Integer aWriteTessGeom = Interface_Static::IVal("write.step.tessellated");
+  Standard_Integer aWriteTessGeom = Interface_Static::IVal("write.step.tessellated");
+  const Standard_Integer aWriteTessSchema = Interface_Static::IVal("write.step.schema");
+  if (aWriteTessSchema != 5)
+  {
+    aWriteTessGeom = 0;
+    Handle(TransferBRep_ShapeMapper) anErrShape =
+      new TransferBRep_ShapeMapper(aShell);
+    FP->AddWarning(anErrShape, " Tessellation can not be exported into not AP242");
+  }
 
   TopoDSToStep_Tool    aTool(aMap, Standard_False);
-  TopoDSToStep_Builder StepB(aShell, aTool, FP, aWriteTessGeom, theProgress);
+  TopoDSToStep_Builder StepB(aShell, aTool, FP, aWriteTessGeom, theLocalFactors, theProgress);
   if (theProgress.UserBreak())
     return;
   //TopoDSToStep::AddResult ( FP, aTool );
@@ -161,6 +179,7 @@ TopoDSToStep_MakeShellBasedSurfaceModel::
 TopoDSToStep_MakeShellBasedSurfaceModel::
   TopoDSToStep_MakeShellBasedSurfaceModel(const TopoDS_Solid& aSolid,
                                           const Handle(Transfer_FinderProcess)& FP,
+                                          const StepData_Factors& theLocalFactors,
                                           const Message_ProgressRange& theProgress)
 {
   done = Standard_False;
@@ -174,7 +193,15 @@ TopoDSToStep_MakeShellBasedSurfaceModel::
   TColStd_SequenceOfTransient      S;
   TColStd_SequenceOfTransient      aTessShells;
 
-  const Standard_Integer aWriteTessGeom = Interface_Static::IVal("write.step.tessellated");
+  Standard_Integer aWriteTessGeom = Interface_Static::IVal("write.step.tessellated");
+  const Standard_Integer aWriteTessSchema = Interface_Static::IVal("write.step.schema");
+  if (aWriteTessSchema != 5)
+  {
+    aWriteTessGeom = 0;
+    Handle(TransferBRep_ShapeMapper) anErrShape =
+      new TransferBRep_ShapeMapper(aShell);
+    FP->AddWarning(anErrShape, " Tessellation can not be exported into not AP242");
+  }
 
   Standard_Integer nbshapes = 0;
   for (It.Initialize(aSolid); It.More(); It.Next())
@@ -187,7 +214,7 @@ TopoDSToStep_MakeShellBasedSurfaceModel::
       aShell = TopoDS::Shell(It.Value());
 
       TopoDSToStep_Tool    aTool(aMap, Standard_False);
-      TopoDSToStep_Builder StepB(aShell, aTool, FP, aWriteTessGeom, aPS.Next());
+      TopoDSToStep_Builder StepB(aShell, aTool, FP, aWriteTessGeom, theLocalFactors, aPS.Next());
       TopoDSToStep::AddResult ( FP, aTool );
 
       if (StepB.IsDone()) {

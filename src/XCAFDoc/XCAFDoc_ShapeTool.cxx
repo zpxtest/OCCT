@@ -48,6 +48,7 @@
 #include <XCAFDoc_GraphNode.hxx>
 #include <XCAFDoc_Location.hxx>
 #include <XCAFDoc_ShapeMapTool.hxx>
+#include <TopLoc_Datum3D.hxx>
 
 IMPLEMENT_DERIVED_ATTRIBUTE_WITH_TYPE(XCAFDoc_ShapeTool,TDataStd_GenericEmpty,"xcaf","ShapeTool")
 
@@ -353,6 +354,47 @@ TopoDS_Shape XCAFDoc_ShapeTool::GetShape(const TDF_Label& L)
 }
 
 //=======================================================================
+//function : GetShapes
+//purpose  : 
+//=======================================================================
+TopoDS_Shape XCAFDoc_ShapeTool::GetOneShape(const TDF_LabelSequence& theLabels)
+{
+  TopoDS_Shape aShape;
+  if (theLabels.Length() == 1)
+  {
+    return GetShape(theLabels.Value(1));
+  }
+  TopoDS_Compound aCompound;
+  BRep_Builder aBuilder;
+  aBuilder.MakeCompound(aCompound);
+  for (TDF_LabelSequence::Iterator anIt(theLabels); anIt.More(); anIt.Next())
+  {
+    TopoDS_Shape aFreeShape;
+    if (!GetShape(anIt.Value(), aFreeShape))
+    {
+      continue;
+    }
+    aBuilder.Add(aCompound, aFreeShape);
+  }
+  if (aCompound.NbChildren() > 0)
+  {
+    aShape = aCompound;
+  }
+  return aShape;
+}
+
+//=======================================================================
+//function : GetOneShape
+//purpose  :
+//=======================================================================
+TopoDS_Shape XCAFDoc_ShapeTool::GetOneShape() const
+{
+  TDF_LabelSequence aLabels;
+  GetFreeShapes(aLabels);
+  return GetOneShape(aLabels);
+}
+
+//=======================================================================
 //function : NewShape
 //purpose  : 
 //=======================================================================
@@ -556,7 +598,7 @@ static Standard_Boolean prepareAssembly (const TopoDS_Shape& theShape,
     for (; Iterator.More(); Iterator.Next())
       aSubShapeSeq.Append(Iterator.Value());
     for (Standard_Integer i = 1; i <= aSubShapeSeq.Length(); i++) {
-      TopoDS_Shape Scomp = aSubShapeSeq.Value(i);
+      const TopoDS_Shape& Scomp = aSubShapeSeq.Value(i);
       TopoDS_Shape aNewScomp;
       B.Remove(theOUTShape, Scomp);
       prepareAssembly( Scomp, aNewScomp );
@@ -1157,7 +1199,7 @@ Standard_Boolean XCAFDoc_ShapeTool::AddSubShape(const TDF_Label &shapeL,
       TDF_LabelSequence aShapeLSeq;
       for (TopoDS_Iterator it(GetShape(shapeL)); it.More() && !isDefined; it.Next())
       {
-        TopoDS_Shape aShape = it.Value();
+        const TopoDS_Shape& aShape = it.Value();
         if (sub.IsSame(aShape.Located(TopLoc_Location())))
         {
           isDefined = Standard_True;
@@ -1421,7 +1463,7 @@ void XCAFDoc_ShapeTool::SetExternRefs(const TDF_Label& L,
   TDataStd_UAttribute::Set(ShapeLabel,XCAFDoc::ExternRefGUID());
   for(Standard_Integer i=1; i<=SHAS.Length(); i++) {
     TDF_Label tmplbl = ShapeLabel.FindChild(i,Standard_True);
-    Handle(TCollection_HAsciiString) str = SHAS(i);
+    const Handle(TCollection_HAsciiString)& str = SHAS(i);
     TCollection_ExtendedString extstr(str->String());
     TDataStd_Name::Set(tmplbl,extstr);
   }
@@ -1441,7 +1483,7 @@ TDF_Label XCAFDoc_ShapeTool::SetExternRefs(const TColStd_SequenceOfHAsciiString&
   TDataStd_UAttribute::Set(ShapeLabel,XCAFDoc::ExternRefGUID());
   for(Standard_Integer i=1; i<=SHAS.Length(); i++) {
     TDF_Label tmplbl = ShapeLabel.FindChild(i,Standard_True);
-    Handle(TCollection_HAsciiString) str = SHAS(i);
+    const Handle(TCollection_HAsciiString)& str = SHAS(i);
     TCollection_ExtendedString extstr(str->String());
     TDataStd_Name::Set(tmplbl,extstr);
   }
@@ -1602,6 +1644,33 @@ Standard_Boolean XCAFDoc_ShapeTool::RemoveSHUO (const TDF_Label& L) const
 //purpose  : auxiliary
 //=======================================================================
 
+static Standard_Boolean IsEqual (const TopLoc_Location& theLoc1, const TopLoc_Location& theLoc2)
+{
+  if (theLoc1.IsEqual (theLoc2)) {return Standard_True; }
+  if (theLoc1.IsIdentity() || theLoc2.IsIdentity()) {return Standard_False; }
+  const Handle(TopLoc_Datum3D)& aDatum1 = theLoc1.FirstDatum();
+  const Handle(TopLoc_Datum3D)& aDatum2 = theLoc2.FirstDatum();
+  if (aDatum1 && aDatum2)
+  {
+    NCollection_Mat4<double> aMat41;
+    NCollection_Mat4<double> aMat42;
+    theLoc1.FirstDatum()->Transformation().GetMat4(aMat41);
+    theLoc2.FirstDatum()->Transformation().GetMat4(aMat42);
+    if ( !aMat41.IsEqual (aMat42)) {return Standard_False; }
+  }
+  else if (aDatum1 || aDatum2) {return Standard_False; }
+  if (theLoc1.FirstPower()  != theLoc2.FirstPower()  ) {return Standard_False; }
+  else { return IsEqual (theLoc1.NextLocation(), theLoc2.NextLocation());}
+}
+
+static Standard_Boolean IsSame (const TopoDS_Shape& theShape1, const TopoDS_Shape& theShape2)
+{
+  
+  return theShape1.TShape() == theShape2.TShape()
+        && theShape1.Orientation() == theShape2.Orientation()
+        && IsEqual (theShape1.Location(), theShape2.Location());
+}
+
 static Standard_Boolean checkForShape (const TopoDS_Shape& theShape,
                                        const TopoDS_Shape& theCurSh,
                                        const TDF_Label& theUserL,
@@ -1616,7 +1685,7 @@ static Standard_Boolean checkForShape (const TopoDS_Shape& theShape,
   aCompLoc = aCompLoc.Multiplied( theCurSh.Location() );
   aSupLoc = aSupLoc.Multiplied( aCompLoc );
   aCopySh.Location( aSupLoc, Standard_False );
-  if ( aCopySh.IsSame( theShape ) ) {
+  if ( IsSame ( theShape, aCopySh ) ) {
     theLabels.Prepend( theUserL );
     return Standard_True;
   }
@@ -2184,7 +2253,7 @@ void XCAFDoc_ShapeTool::DumpJson (Standard_OStream& theOStream, Standard_Integer
 
   for (XCAFDoc_DataMapOfShapeLabel::Iterator aShapeLabelIt (myShapeLabels); aShapeLabelIt.More(); aShapeLabelIt.Next())
   {
-    const TopoDS_Shape aShape = aShapeLabelIt.Key();
+    const TopoDS_Shape& aShape = aShapeLabelIt.Key();
     OCCT_DUMP_FIELD_VALUE_POINTER (theOStream, &aShape)
 
     TCollection_AsciiString aShapeLabel;
@@ -2194,7 +2263,7 @@ void XCAFDoc_ShapeTool::DumpJson (Standard_OStream& theOStream, Standard_Integer
 
   for (XCAFDoc_DataMapOfShapeLabel::Iterator aSubShapeIt (mySubShapes); aSubShapeIt.More(); aSubShapeIt.Next())
   {
-    const TopoDS_Shape aSubShape = aSubShapeIt.Key();
+    const TopoDS_Shape& aSubShape = aSubShapeIt.Key();
     OCCT_DUMP_FIELD_VALUE_POINTER (theOStream, &aSubShape)
 
     TCollection_AsciiString aSubShapeLabel;
@@ -2204,7 +2273,7 @@ void XCAFDoc_ShapeTool::DumpJson (Standard_OStream& theOStream, Standard_Integer
 
   for (XCAFDoc_DataMapOfShapeLabel::Iterator aSimpleShapeIt (mySimpleShapes); aSimpleShapeIt.More(); aSimpleShapeIt.Next())
   {
-    const TopoDS_Shape aSimpleShape = aSimpleShapeIt.Key();
+    const TopoDS_Shape& aSimpleShape = aSimpleShapeIt.Key();
     OCCT_DUMP_FIELD_VALUE_POINTER (theOStream, &aSimpleShape)
 
     TCollection_AsciiString aSimpleShapeLabel;

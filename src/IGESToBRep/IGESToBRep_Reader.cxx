@@ -157,7 +157,7 @@ Standard_Integer IGESToBRep_Reader::LoadFile (const Standard_CString filename)
   Interface_CheckTool cht (model,protocol);
   Interface_CheckIterator anIter = cht.CompleteCheckList();
   for(anIter.Start(); anIter.More(); anIter.Next()) {
-    const Handle(Interface_Check) ach = anIter.Value();
+    const Handle(Interface_Check)& ach = anIter.Value();
     nbWarn += ach->NbWarnings();
     nbFail += ach->NbFails();
   }
@@ -552,7 +552,7 @@ Standard_Boolean  IGESToBRep_Reader::Transfer(const Standard_Integer num,
     shape = XSAlgo::AlgoContainer()->ProcessShape( shape, eps*CAS.GetUnitFactor(), CAS.GetMaxTol(),
                                                    "read.iges.resource.name", 
                                                    "read.iges.sequence", info,
-                                                   aPS.Next() );
+                                                   aPS.Next(), false, TopAbs_EDGE);
     if (aPS.UserBreak())
       return Standard_False;
 

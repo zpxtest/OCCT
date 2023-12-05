@@ -54,6 +54,8 @@ STEPControl_Controller::STEPControl_Controller ()
 : XSControl_Controller ("STEP", "step")
 {
   static Standard_Boolean init = Standard_False;
+  static Standard_Mutex aMutex;
+  aMutex.Lock();
   if (!init) {
     RWHeaderSection::Init();  RWStepAP214::Init();
 
@@ -239,6 +241,7 @@ STEPControl_Controller::STEPControl_Controller ()
     Interface_Static::Init ("XSTEP", "FromSTEP.FixShape.FixNonAdjacentIntersectingEdgesMode", 't', "-1");
     Interface_Static::Init ("XSTEP", "FromSTEP.FixShape.FixVertexPositionMode",       't', "0");
     Interface_Static::Init ("XSTEP", "FromSTEP.FixShape.FixVertexToleranceMode",      't', "-1"); 
+    Interface_Static::Init ("XSTEP", "FromSTEP.FixFaceSize.Tolerance",                't', "1.e-7"); 
 
     // ika 28.07.16: Parameter to read all top level solids and shells,
     // should be used only in case of invalid shape_representation without links to shapes.
@@ -317,6 +320,7 @@ STEPControl_Controller::STEPControl_Controller ()
 
     init = Standard_True;
   }
+  aMutex.Unlock();
 
   Handle(STEPControl_ActorWrite) ActWrite = new STEPControl_ActorWrite;
   ActWrite->SetGroupMode (Interface_Static::IVal("write.step.assembly"));

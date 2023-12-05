@@ -945,7 +945,7 @@ void AIS_InteractiveContext::Redisplay (const AIS_KindOfInteractive theKOI,
   Standard_Boolean isRedisplayed = Standard_False;
   for (AIS_DataMapIteratorOfDataMapOfIOStatus anObjIter (myObjects); anObjIter.More(); anObjIter.Next())
   {
-    Handle(AIS_InteractiveObject) anObj = anObjIter.Key();
+    const Handle(AIS_InteractiveObject)& anObj = anObjIter.Key();
     if (anObj->Type() != theKOI)
     {
       continue;
@@ -1155,7 +1155,7 @@ void AIS_InteractiveContext::SetDisplayMode(const Standard_Integer theMode,
       continue;
     }
 
-    Handle(AIS_GlobalStatus) aStatus = anObjIter.Value();
+    const Handle(AIS_GlobalStatus)& aStatus = anObjIter.Value();
     aStatus->SetDisplayMode (theMode);
 
     if (anObj->DisplayStatus() == PrsMgr_DisplayStatus_Displayed)
@@ -2251,7 +2251,7 @@ Bnd_Box AIS_InteractiveContext::BoundingBoxOfSelection (const Handle(V3d_View)& 
 
   for (AIS_MapIteratorOfMapOfObjectOwners anIter (anObjectOwnerMap); anIter.More(); anIter.Next())
   {
-    const Handle(SelectMgr_SelectableObject) anObject = anIter.Key();
+    const Handle(SelectMgr_SelectableObject)& anObject = anIter.Key();
     Bnd_Box aTmpBox = anObject->BndBoxOfSelected (anIter.ChangeValue());
     aBndSelected.Add (aTmpBox);
   }
@@ -3229,6 +3229,30 @@ void AIS_InteractiveContext::ClearSelected (const Standard_Boolean theToUpdateVi
 }
 
 //=======================================================================
+//function : isDetected
+//purpose  :
+//=======================================================================
+Standard_Boolean AIS_InteractiveContext::isDetected (const Handle(AIS_InteractiveObject)& theObject)
+{
+  for (Standard_Integer aDetIter = myDetectedSeq.Lower(); aDetIter <= myDetectedSeq.Upper(); aDetIter++)
+  {
+    Handle(SelectMgr_EntityOwner) aPicked = MainSelector()->Picked(myDetectedSeq(aDetIter));
+    Handle(AIS_InteractiveObject) anObj;
+    if (!aPicked.IsNull())
+    {
+      anObj = Handle(AIS_InteractiveObject)::DownCast(aPicked->Selectable());
+    }
+
+    if (!anObj.IsNull()
+      && anObj == theObject)
+    {
+      return Standard_True;
+    }
+  }
+  return Standard_False;
+}
+
+//=======================================================================
 //function : SetSelected
 //purpose  : Sets the whole object as selected and highlights it with selection color
 //=======================================================================
@@ -3288,7 +3312,8 @@ void AIS_InteractiveContext::SetSelected (const Handle(AIS_InteractiveObject)& t
   }
 
   // added to avoid untimely viewer update...
-  mySelection->ClearAndSelect (anOwner);
+  const Handle(AIS_InteractiveObject) anObj = Handle(AIS_InteractiveObject)::DownCast (anOwner->Selectable());
+  mySelection->ClearAndSelect (anOwner, myFilters, isDetected (anObj));
 
   if (myAutoHilight)
   {
@@ -3350,7 +3375,7 @@ void AIS_InteractiveContext::SetSelected (const Handle(SelectMgr_EntityOwner)& t
     unhighlightSelected();
   }
 
-  mySelection->ClearAndSelect (theOwner);
+  mySelection->ClearAndSelect (theOwner, myFilters, isDetected (anObject));
   if (myAutoHilight)
   {
     Handle(Prs3d_Drawer) aCustomStyle;
@@ -3401,16 +3426,17 @@ void AIS_InteractiveContext::AddOrRemoveSelected (const Handle(SelectMgr_EntityO
     return;
   }
 
-  if (!myFilters->IsOk(theOwner) && !theOwner->IsSelected())
+  if (!myFilters->IsOk (theOwner) && !theOwner->IsSelected())
   {
     return;
   }
 
-  mySelection->Select (theOwner);
+  AIS_SelectionScheme aSelScheme = theOwner->IsSelected() ? AIS_SelectionScheme_Remove : AIS_SelectionScheme_Add;
+  const Handle(AIS_InteractiveObject) anObj = Handle(AIS_InteractiveObject)::DownCast (theOwner->Selectable());
+  mySelection->Select (theOwner, myFilters, aSelScheme, isDetected (anObj));
 
   if (myAutoHilight)
   {
-    const Handle(AIS_InteractiveObject) anObj = Handle(AIS_InteractiveObject)::DownCast (theOwner->Selectable());
     Handle(AIS_GlobalStatus)* aStatusPtr = myObjects.ChangeSeek (anObj);
     if (!aStatusPtr)
     {
@@ -3469,7 +3495,8 @@ Standard_Boolean AIS_InteractiveContext::SetSelectedState (const Handle(SelectMg
   }
   else
   {
-    const AIS_SelectStatus aSelStatus = mySelection->Select (theEntity);
+    const Handle(AIS_InteractiveObject) anObj = Handle(AIS_InteractiveObject)::DownCast(theEntity->Selectable());
+    const AIS_SelectStatus aSelStatus = mySelection->Select (theEntity, myFilters, AIS_SelectionScheme_Remove, isDetected (anObj));
     theEntity->SetSelected (false);
     return aSelStatus == AIS_SS_Removed;
   }

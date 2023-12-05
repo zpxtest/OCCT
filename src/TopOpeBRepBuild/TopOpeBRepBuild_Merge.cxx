@@ -124,12 +124,9 @@ static void CorrectUnclosedWire(TopoDS_Shape& aWire)
 //  std::cout << "-------CorrectUnclosedWire" << std::endl;
   BRep_Builder BB;
   TopoDS_Iterator tdi(aWire, Standard_False, Standard_False);
-  Standard_Integer nbe = 0;
   for(; tdi.More(); tdi.Next()) {
-    nbe++;
     const TopoDS_Shape& ed = tdi.Value();
     Standard_Integer nbv = ed.NbChildren();
-//    std::cout << "Edge " << nbe << " : " << nbv << std::endl;
     if(nbv <= 1) {
 //      std::cout << "Remove bad edge" << std::endl;
       BB.Remove(aWire, ed);
@@ -144,7 +141,7 @@ static void CorrectUnclosedWire(TopoDS_Shape& aWire)
   for(i = 1; i <= nbVer; i++) {
     const TopTools_ListOfShape& Elist = VElists.FindFromIndex(i);
     if(Elist.Extent() == 1) {
-      TopoDS_Shape anEdge = Elist.First();
+      const TopoDS_Shape& anEdge = Elist.First();
 //      std::cout << "Remove redundant edge" << std::endl;
       BB.Remove(aWire, anEdge);
     }
@@ -345,7 +342,7 @@ void TopOpeBRepBuild_Builder::MakeSolids(TopOpeBRepBuild_SolidBuilder& SOBU,TopT
       else {
 	myBuildTool.MakeShell(newShell);
 	for (SOBU.InitFace(); SOBU.MoreFace(); SOBU.NextFace()) {
-	  TopoDS_Shape F = SOBU.Face();
+	  const TopoDS_Shape& F = SOBU.Face();
 	  myBuildTool.AddShellFace(newShell,F);
 	}
       }
@@ -369,7 +366,7 @@ void TopOpeBRepBuild_Builder::MakeShells(TopOpeBRepBuild_SolidBuilder& SOBU,TopT
     else {
       myBuildTool.MakeShell(newShell);
       for (SOBU.InitFace(); SOBU.MoreFace(); SOBU.NextFace()) {
-	TopoDS_Shape F = SOBU.Face();
+	const TopoDS_Shape& F = SOBU.Face();
 	myBuildTool.AddShellFace(newShell,F);
       }
     }
@@ -413,7 +410,7 @@ void TopOpeBRepBuild_Builder::MakeFaces(const TopoDS_Shape& aFace,TopOpeBRepBuil
       else {
 	myBuildTool.MakeWire(newWire);
 	for(FABU.InitEdge(); FABU.MoreEdge(); FABU.NextEdge()) {
-	  TopoDS_Shape E = FABU.Edge();
+	  const TopoDS_Shape& E = FABU.Edge();
 	  if (hns) myBuildTool.UpdateSurface(E,aFace,newFace);
 	  myBuildTool.AddWireEdge(newWire,E);
 	}
@@ -455,10 +452,7 @@ void TopOpeBRepBuild_Builder::MakeEdges(const TopoDS_Shape& anEdge,TopOpeBRepBui
   Standard_Integer iE; Standard_Boolean tSPS = GtraceSPS(anEdge,iE);
   Standard_Integer ne = 0;
 #endif
-  
-  Standard_Integer nvertex = 0;
-  for (TopOpeBRepTool_ShapeExplorer ex(anEdge,TopAbs_VERTEX); ex.More(); ex.Next()) nvertex++;
-  
+
   TopoDS_Shape newEdge;
   for (EDBU.InitEdge(); EDBU.MoreEdge(); EDBU.NextEdge()) {
     

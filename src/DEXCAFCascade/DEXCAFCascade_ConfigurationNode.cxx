@@ -34,9 +34,7 @@ namespace
 //=======================================================================
 DEXCAFCascade_ConfigurationNode::DEXCAFCascade_ConfigurationNode() :
   DE_ConfigurationNode()
-{
-  UpdateLoad();
-}
+{}
 
 //=======================================================================
 // function : DEXCAFCascade_ConfigurationNode
@@ -46,7 +44,6 @@ DEXCAFCascade_ConfigurationNode::DEXCAFCascade_ConfigurationNode(const Handle(DE
   :DE_ConfigurationNode(theNode)
 {
   InternalParameters = theNode->InternalParameters;
-  UpdateLoad();
 }
 
 //=======================================================================
@@ -128,7 +125,7 @@ Handle(DE_ConfigurationNode) DEXCAFCascade_ConfigurationNode::Copy() const
 //=======================================================================
 Handle(DE_Provider) DEXCAFCascade_ConfigurationNode::BuildProvider()
 {
-  return new DEXCAFCascade_Provider();
+  return new DEXCAFCascade_Provider (this);
 }
 
 //=======================================================================

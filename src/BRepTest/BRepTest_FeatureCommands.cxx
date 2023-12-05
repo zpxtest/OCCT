@@ -57,7 +57,6 @@
 #include <Precision.hxx>
 
 #ifdef _WIN32
-//#define strcasecmp _stricmp Already defined
 Standard_IMPORT Draw_Viewer dout;
 #endif
 
@@ -112,6 +111,7 @@ static Standard_Boolean pidef = Standard_False;
 static Standard_Boolean lfdef = Standard_False;
 static Standard_Boolean rfdef = Standard_False;
 
+static Standard_Real tesp = 1.0e-4;
 static Standard_Real t3d = 1.e-4;
 static Standard_Real t2d = 1.e-5;
 static Standard_Real ta = 1.e-2;
@@ -412,6 +412,11 @@ static void reportOffsetState(Draw_Interpretor& theCommands,
   case BRepOffset_CannotExtentEdge:
   {
     theCommands << "ERROR. Can not extent edge.";
+    break;
+  }
+  case  BRepOffset_MixedConnectivity:
+  {
+    theCommands << "ERROR. Mixed connectivity of faces.";
     break;
   }
   default:
@@ -973,7 +978,10 @@ Standard_Integer thickshell(Draw_Interpretor& theCommands,
   const BRepOffset_Error aRetCode = B.Error();
   reportOffsetState(theCommands, aRetCode);
 
-  DBRep::Set(a[1], B.Shape());
+  if (!B.Shape().IsNull())
+  {
+    DBRep::Set(a[1], B.Shape());
+  }
   return 0;
 }
 
@@ -1108,7 +1116,10 @@ Standard_Integer offsetshape(Draw_Interpretor& theCommands,
   const BRepOffset_Error aRetCode = B.Error();
   reportOffsetState(theCommands, aRetCode);
 
-  DBRep::Set(a[1], B.Shape());
+  if (!B.Shape().IsNull())
+  {
+    DBRep::Set(a[1], B.Shape());
+  }
 
   return 0;
 }
@@ -2361,7 +2372,7 @@ static Standard_Integer BOSS(Draw_Interpretor& theCommands,
     if (Rakk)
       delete Rakk;
     Rakk = new BRepFilletAPI_MakeFillet(V, FSh);
-    Rakk->SetParams(ta, t3d, t2d, t3d, t2d, fl);
+    Rakk->SetParams(ta, tesp, t2d, t3d, t2d, fl);
     Rakk->SetContinuity(blend_cont, tapp_angle);
     Standard_Real Rad;
     TopoDS_Shape S;

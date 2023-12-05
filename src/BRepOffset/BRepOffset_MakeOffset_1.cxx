@@ -1177,6 +1177,45 @@ void BRepOffset_BuildOffsetFaces::IntersectTrimmedEdges (const Message_ProgressR
   UpdateIntersectedEdges (aLA, aGFE);
 }
 
+namespace
+{
+  //=======================================================================
+  //function : CheckConnectionsOfFace
+  //purpose  : Checks number of connections for theFace with theLF
+  //           Returns true if number of connections more than 1
+  //=======================================================================
+  static Standard_Boolean checkConnectionsOfFace(const TopoDS_Shape& theFace,
+    const TopTools_ListOfShape& theLF)
+  {
+    TopTools_IndexedMapOfShape aShapeVert;
+    for (TopTools_ListOfShape::Iterator aFImIterator(theLF); aFImIterator.More(); aFImIterator.Next())
+    {
+      const TopoDS_Shape& aShape = aFImIterator.Value();
+      if (aShape.IsSame(theFace))
+      {
+        continue;
+      }
+      TopExp::MapShapes(aShape, TopAbs_VERTEX, aShapeVert);
+    }
+    Standard_Integer aNbConnections = 0;
+    TopTools_IndexedMapOfShape aFaceVertices;
+    TopExp::MapShapes(theFace, TopAbs_VERTEX, aFaceVertices);
+    for (TopTools_IndexedMapOfShape::Iterator aVertIter(aFaceVertices); aVertIter.More(); aVertIter.Next())
+    {
+      const TopoDS_Shape& aVert = aVertIter.Value();
+      if (aShapeVert.Contains(aVert))
+      {
+        ++aNbConnections;
+      }
+      if (aNbConnections > 1)
+      {
+        return Standard_True;
+      }
+    }
+    return Standard_False;
+  }
+}
+
 //=======================================================================
 //function : BuildSplitsOfFaces
 //purpose  : Building the splits of offset faces and
@@ -1268,6 +1307,10 @@ void BRepOffset_BuildOffsetFaces::BuildSplitsOfFaces (const Message_ProgressRang
       for (TopTools_ListIteratorOfListOfShape aItLFIm (aLFImages1); aItLFIm.More();)
       {
         Standard_Boolean bAllInv = Standard_True;
+        // Additional check for artificial case 
+        // if current image face consist only of edges from aMapEInv and aMENInv
+        // then recheck current face for the futher processing
+        Standard_Boolean aToReCheckFace = bArtificialCase;
         const TopoDS_Shape& aFIm = aItLFIm.Value();
         TopExp_Explorer aExpE (aFIm, TopAbs_EDGE);
         for (; aExpE.More(); aExpE.Next())
@@ -1278,12 +1321,19 @@ void BRepOffset_BuildOffsetFaces::BuildSplitsOfFaces (const Message_ProgressRang
             bAllInv = Standard_False;
             if (!aMENInv.Contains (aE))
             {
+              aToReCheckFace = Standard_False;
               break;
             }
           }
         }
-        //
-        if (!aExpE.More())
+        // if current image face is to recheck then check number of connections for this face
+        // with other image faces for current face
+        if (!aExpE.More() && aToReCheckFace)
+        {
+          aToReCheckFace = checkConnectionsOfFace(aFIm, aLFImages1);
+        }
+        // do not delete image face from futher processing if aToReCheckFace is true
+        if (!aExpE.More() && !aToReCheckFace)
         {
           if (bAllInv)
           {
@@ -5225,7 +5275,6 @@ void BRepOffset_BuildOffsetFaces::FilterInvalidEdges (const BRepOffset_DataMapOf
     const TopTools_ListOfShape* pEOrigins = myOEOrigins.Seek (aE);
     if (!pEOrigins)
     {
-      theMEUseInRebuild.Add (aE);
       continue;
     }
 
@@ -5392,6 +5441,29 @@ void BRepOffset_BuildOffsetFaces::FindFacesToRebuild()
     }
   }
 }
+
+
+namespace
+{
+//=======================================================================
+//function : mapShapes
+//purpose  : Collect theVecShapes into theMap with setted theType
+//=======================================================================
+  template<class Container>
+  static void mapShapes (const Container& theVecShapes, 
+                         const TopAbs_ShapeEnum theType,
+                         TopTools_MapOfShape& theMap)
+  {
+    for (const auto& aShape : theVecShapes)
+    {
+      for (TopExp_Explorer anExp(aShape, theType); anExp.More(); anExp.Next())
+      {
+        theMap.Add(anExp.Current());
+      }
+    }
+  }
+}
+
 
 //=======================================================================
 //function : IntersectFaces
@@ -5715,7 +5787,10 @@ void BRepOffset_BuildOffsetFaces::IntersectFaces (TopTools_MapOfShape& theVertsT
       TopoDS_Compound aCBE;
       aBB.MakeCompound (aCBE);
       //
-      TopExp_Explorer aExp (aCBInv, TopAbs_EDGE);
+      // remember inside edges and vertices to further check
+      TopTools_MapOfShape anInsideEdges;
+      TopTools_MapOfShape anInsideVertices;
+      TopExp_Explorer aExp(aCBInv, TopAbs_EDGE);
       for (; aExp.More(); aExp.Next())
       {
         const TopoDS_Shape& aE = aExp.Current();
@@ -5724,6 +5799,15 @@ void BRepOffset_BuildOffsetFaces::IntersectFaces (TopTools_MapOfShape& theVertsT
           if (aMEFence.Add (aE))
           {
             aBB.Add (aCBE, aE);
+            if (!myEdgesToAvoid.Contains(aE) && myInvalidEdges.Contains(aE))
+            {
+              anInsideEdges.Add(aE);
+              TopoDS_Iterator anIt(aE);
+              for (; anIt.More(); anIt.Next())
+              {
+                anInsideVertices.Add(anIt.Value());
+              }
+            }
           }
         }
       }
@@ -5749,10 +5833,6 @@ void BRepOffset_BuildOffsetFaces::IntersectFaces (TopTools_MapOfShape& theVertsT
         TopExp::MapShapes (aCBELoc, TopAbs_EDGE, aME);
         aMECV = aME;
         TopExp::MapShapes (aCBELoc, TopAbs_VERTEX, aME);
-        //
-        // Using the map <aME> find chain of faces to be intersected;
-        //
-        // faces for intersection
         TopTools_IndexedMapOfShape aMFInt;
         // additional faces for intersection
         TopTools_IndexedMapOfShape aMFIntExt;
@@ -5801,6 +5881,14 @@ void BRepOffset_BuildOffsetFaces::IntersectFaces (TopTools_MapOfShape& theVertsT
           if (pMFInter && !pInterFi)
             continue;
 
+          // create map of edges and vertices for aLFImi
+          TopTools_MapOfShape  aMEVIm;
+          mapShapes(*aLFImi, TopAbs_EDGE, aMEVIm);
+          mapShapes(*aLFImi, TopAbs_VERTEX, aMEVIm);
+
+          Standard_Boolean isIContainsE = aMEVIm.HasIntersection(anInsideEdges);
+          Standard_Boolean isIContainsV = aMEVIm.HasIntersection(anInsideVertices);
+
           for (j = i + 1; j <= aNb; ++j)
           {
             const TopoDS_Face& aFj = TopoDS::Face (aMFInt (j));
@@ -5820,6 +5908,28 @@ void BRepOffset_BuildOffsetFaces::IntersectFaces (TopTools_MapOfShape& theVertsT
             if (!aLFEj)
               continue;
 
+            // create map of edges and vertices for aLFImi
+            aMEVIm.Clear();
+            mapShapes(*aLFImj, TopAbs_EDGE, aMEVIm);
+            mapShapes(*aLFImj, TopAbs_VERTEX, aMEVIm);
+            // check images of both faces contain anInsideEdges and anInsideVertices
+            // not process if false and true 
+            Standard_Boolean isJContainsE = aMEVIm.HasIntersection(anInsideEdges);
+            Standard_Boolean isJContainsV = aMEVIm.HasIntersection(anInsideVertices);
+
+            // Check if one face is connected to inside edge then
+            // the other must be also connected
+            if ((isIContainsE && !isJContainsV) ||
+                (isJContainsE && !isIContainsV))
+            {
+              TopTools_ListOfShape aLVC;
+              // it is necessary to process the images if they already have 
+              // common vertices
+              FindCommonParts(*aLFImi, *aLFImj, aLVC, TopAbs_VERTEX);
+
+              if (aLVC.IsEmpty())
+                continue;
+            }
             //
             // if there are some common edges between faces
             // we should use these edges and do not intersect again.

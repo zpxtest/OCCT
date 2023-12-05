@@ -808,7 +808,7 @@ Standard_Integer XSControl_TransferReader::TransferOne
 
   //  seule difference entre TransferRoots et TransferOne
   Standard_Integer res = 0;
-  Handle(Standard_Transient) obj = ent;
+  const Handle(Standard_Transient)& obj = ent;
   TP.Transfer (obj, theProgress);
   if (theProgress.UserBreak())
     return res;
@@ -1176,7 +1176,7 @@ void XSControl_TransferReader::PrintStatsOnList(const Handle(Transfer_TransientP
   if (what >= 1 && what <= 3) {
 
     Standard_Integer stat;
-    Standard_Integer nbv = 0, nbw = 0, nbf = 0, nbr = 0, nbrw = 0, nbrf = 0, nbnr = 0, nbi = 0;
+    Standard_Integer nbw = 0, nbf = 0, nbr = 0, nbrw = 0, nbrf = 0, nbnr = 0, nbi = 0;
     Transfer_IteratorOfProcessForTransient itrp(Standard_True);
     if (what == 1) itrp = TP->RootResult(Standard_True);
     if (what == 2) itrp = TP->CompleteResult(Standard_True);
@@ -1197,8 +1197,8 @@ void XSControl_TransferReader::PrintStatsOnList(const Handle(Transfer_TransientP
 
     for (itrp.Start(); itrp.More(); itrp.Next()) {
       nbi ++;
-      Handle(Transfer_Binder) binder = itrp.Value();
-      Handle(Standard_Transient) ent = itrp.Starting();
+      const Handle(Transfer_Binder)& binder = itrp.Value();
+      const Handle(Standard_Transient)& ent = itrp.Starting();
       if (binder.IsNull())  {
 	nbnr ++;
 	if (notrec) counter->Add(ent,"(not recorded)");
@@ -1214,7 +1214,6 @@ void XSControl_TransferReader::PrintStatsOnList(const Handle(Transfer_TransientP
 	stat = BinderStatus(binder,mess);
         // 0 Binder Null.   1 void  2 Warning seul  3 Fail seul
         // 11 Resultat OK. 12 Resultat+Warning. 13 Resultat+Fail
-	if (stat ==  0 || stat == 1) nbv ++;
 	if (stat ==  2) nbw ++;
 	if (stat ==  3) nbf ++;
 	if (stat == 11) nbr ++;
