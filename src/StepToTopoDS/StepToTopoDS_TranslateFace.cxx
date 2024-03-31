@@ -545,7 +545,10 @@ void StepToTopoDS_TranslateFace::Init(const Handle(StepShape_FaceSurface)& FS,
 #endif    
     FaceBound = FS->BoundsValue(i);
     Loop      = FaceBound->Bound();
-    
+    if (Loop.IsNull())
+    {
+      continue;
+    }
     // ------------------------
     // The Loop is a VertexLoop
     // ------------------------
@@ -757,6 +760,8 @@ void StepToTopoDS_TranslateFace::Init(const Handle(StepVisual_TessellatedFace)& 
 
   if (theNMTool.IsActive())
     theNMTool.Bind(theTF, aF);
+
+  aTP->Bind(theTF, new TransferBRep_ShapeBinder(aF));
 
   myResult = aF;
   myError = StepToTopoDS_TranslateFaceDone;

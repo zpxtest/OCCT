@@ -944,7 +944,7 @@ private:
   }
 
 private:
-  NCollection_Map<TCollection_AsciiString, TCollection_AsciiString>
+  NCollection_Map<TCollection_AsciiString>
                            myNameMap;         //!< names map to handle collisions
   Handle(TDocStd_Document) myDoc;             //!< document
   TCollection_AsciiString  myDocName;         //!< document name
@@ -1848,32 +1848,13 @@ void XDEDRAW::Init(Draw_Interpretor& di)
   XDEDRAW_Views::InitCommands(di);
   XDEDRAW_Notes::InitCommands(di);
   XDEDRAW_Common::InitCommands ( di );//moved from EXE
-
-  DE_Wrapper::GlobalWrapper()->Bind(new RWObj_ConfigurationNode());
-  DE_Wrapper::GlobalWrapper()->Bind(new RWPly_ConfigurationNode());
-  DE_Wrapper::GlobalWrapper()->Bind(new RWGltf_ConfigurationNode());
-  DE_Wrapper::GlobalWrapper()->Bind(new IGESCAFControl_ConfigurationNode());
-  DE_Wrapper::GlobalWrapper()->Bind(new STEPCAFControl_ConfigurationNode());
-  DE_Wrapper::GlobalWrapper()->Bind(new Vrml_ConfigurationNode());
-  DE_Wrapper::GlobalWrapper()->Bind(new DEXCAFCascade_ConfigurationNode());
-  DE_Wrapper::GlobalWrapper()->Bind(new RWStl_ConfigurationNode());
-  DE_Wrapper::GlobalWrapper()->Bind(new DEBRepCascade_ConfigurationNode());
 }
-
 
 //==============================================================================
 // XDEDRAW::Factory
 //==============================================================================
 void XDEDRAW::Factory(Draw_Interpretor& theDI)
 {
-  XSDRAWIGES::InitSelect();
-  XSDRAWIGES::InitToBRep(theDI);
-  XSDRAWIGES::InitFromBRep(theDI);
-
-  XSDRAWSTEP::InitCommands(theDI);
-
-  XSDRAW::LoadDraw(theDI);
-
   XDEDRAW::Init(theDI);
 
 #ifdef OCCT_DEBUG

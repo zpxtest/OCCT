@@ -91,6 +91,8 @@
 #include <TDocStd_Application.hxx>
 #include <TPrsStd_AISPresentation.hxx>
 #include <ExprIntrp_GenExp.hxx>
+#include <StepData_StepModel.hxx>
+#include <XSControl_WorkSession.hxx>
 
 #if ! defined(_WIN32)
 extern ViewerTest_DoubleMapOfInteractiveAndName& GetMapOfAIS();
@@ -1188,6 +1190,7 @@ static Standard_Integer OCC369(Draw_Interpretor& di, Standard_Integer argc, cons
 }
 
 #include <math_Matrix.hxx>
+#include <math_Vector.hxx>
 static Standard_Integer OCC524 (Draw_Interpretor& di, Standard_Integer argc, const char ** argv)
 {
   if(argc != 9){

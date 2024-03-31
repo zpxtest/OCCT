@@ -24,6 +24,8 @@
 #include <STEPCAFControl_DataMapOfLabelExternFile.hxx>
 #include <STEPControl_Writer.hxx>
 #include <StepAP242_GeometricItemSpecificUsage.hxx>
+#include <StepData_ConfParameters.hxx>
+#include <StepData_Factors.hxx>
 #include <StepDimTol_Datum.hxx>
 #include <StepDimTol_GeometricTolerance.hxx>
 #include <StepDimTol_HArray1OfDatumSystemOrReference.hxx>
@@ -38,7 +40,6 @@ class XSControl_WorkSession;
 class TDocStd_Document;
 class STEPCAFControl_ExternFile;
 class TopoDS_Shape;
-class StepData_Factors;
 
 //! Provides a tool to write DECAF document to the
 //! STEP file. Besides transfer of shapes (including
@@ -91,14 +92,48 @@ public:
                                             const Standard_CString theIsMulti = 0,
                                             const Message_ProgressRange& theProgress = Message_ProgressRange());
 
+  //! Transfers a document (or single label) to a STEP model
+  //! This method uses if need to set parameters avoiding
+  //! initialization from Interface_Static
+  //! @param theParams  configuration parameters
+  //! @param theMode    mode of translation of shape is AsIs
+  //! @param theIsMulti if multi is not null pointer, it switches to multifile
+  //!                   mode (with external refs), and string pointed by <multi>
+  //!                   gives prefix for names of extern files (can be empty string)
+  //! @param theProgress progress indicator
+  //! Returns True if translation is OK
+  Standard_EXPORT Standard_Boolean Transfer(const Handle(TDocStd_Document)& theDoc,
+                                            const StepData_ConfParameters& theParams,
+                                            const STEPControl_StepModelType theMode = STEPControl_AsIs,
+                                            const Standard_CString theIsMulti = 0,
+                                            const Message_ProgressRange& theProgress = Message_ProgressRange());
+
   //! Method to transfer part of the document specified by label
   Standard_EXPORT Standard_Boolean Transfer(const TDF_Label& theLabel,
                                             const STEPControl_StepModelType theMode = STEPControl_AsIs,
                                             const Standard_CString theIsMulti = 0,
                                             const Message_ProgressRange& theProgress = Message_ProgressRange());
 
+  //! Method to transfer part of the document specified by label
+  //! This method uses if need to set parameters avoiding
+  //! initialization from Interface_Static
+  Standard_EXPORT Standard_Boolean Transfer(const TDF_Label& theLabel,
+                                            const StepData_ConfParameters& theParams,
+                                            const STEPControl_StepModelType theMode = STEPControl_AsIs,
+                                            const Standard_CString theIsMulti = 0,
+                                            const Message_ProgressRange& theProgress = Message_ProgressRange());
+
   //! Mehod to writing sequence of root assemblies or part of the file specified by use by one label 
   Standard_EXPORT Standard_Boolean Transfer(const TDF_LabelSequence& theLabelSeq,
+                                            const STEPControl_StepModelType theMode = STEPControl_AsIs,
+                                            const Standard_CString theIsMulti = 0,
+                                            const Message_ProgressRange& theProgress = Message_ProgressRange());
+
+  //! Mehod to writing sequence of root assemblies or part of the file specified by use by one label 
+  //! This method uses if need to set parameters avoiding
+  //! initialization from Interface_Static
+  Standard_EXPORT Standard_Boolean Transfer(const TDF_LabelSequence& theLabelSeq,
+                                            const StepData_ConfParameters& theParams,
                                             const STEPControl_StepModelType theMode = STEPControl_AsIs,
                                             const Standard_CString theIsMulti = 0,
                                             const Message_ProgressRange& theProgress = Message_ProgressRange());
@@ -111,6 +146,15 @@ public:
   //! Returns True if translation is OK
   Standard_EXPORT Standard_Boolean Perform(const Handle(TDocStd_Document)& theDoc,
                                            const Standard_CString theFileName,
+                                           const Message_ProgressRange& theProgress = Message_ProgressRange());
+
+  //! Transfers a document and writes it to a STEP file
+  //! This method uses if need to set parameters avoiding
+  //! initialization from Interface_Static
+  //! Returns True if translation is OK
+  Standard_EXPORT Standard_Boolean Perform(const Handle(TDocStd_Document)& theDoc,
+                                           const Standard_CString theFileName,
+                                           const StepData_ConfParameters& theParams,
                                            const Message_ProgressRange& theProgress = Message_ProgressRange());
 
   //! Returns data on external files
@@ -189,7 +233,7 @@ protected:
   TopoDS_Shape transferExternFiles(const TDF_Label& theLabel,
                                    const STEPControl_StepModelType theMode,
                                    TDF_LabelSequence& theLabelSeq,
-                                   const StepData_Factors& theLocalFactors,
+                                   const StepData_Factors& theLocalFactors = StepData_Factors(),
                                    const Standard_CString thePrefix = "",
                                    const Message_ProgressRange& theProgress = Message_ProgressRange());
 
@@ -212,7 +256,7 @@ protected:
   //! Write D&GTs assigned to specified labels, to STEP model, according AP242
   Standard_Boolean writeDGTsAP242(const Handle(XSControl_WorkSession)& theWS,
                                   const TDF_LabelSequence& theLabels,
-                                  const StepData_Factors& theLocalFactors);
+                                  const StepData_Factors& theLocalFactors = StepData_Factors());
 
   //! Write materials assigned to specified labels, to STEP model
   Standard_Boolean writeMaterials(const Handle(XSControl_WorkSession)& theWS,
@@ -253,14 +297,14 @@ protected:
                          const gp_Ax2& theAnnotationPlane,
                          const gp_Pnt& theTextPosition,
                          const Handle(Standard_Transient)& theDimension,
-                         const StepData_Factors& theLocalFactors);
+                         const StepData_Factors& theLocalFactors = StepData_Factors());
 
   Handle(StepDimTol_Datum) writeDatumAP242(const Handle(XSControl_WorkSession)& theWS,
                                            const TDF_LabelSequence& theShapeL,
                                            const TDF_Label& theDatumL,
                                            const Standard_Boolean isFirstDTarget,
                                            const Handle(StepDimTol_Datum)& theWrittenDatum,
-                                           const StepData_Factors& theLocalFactors);
+                                           const StepData_Factors& theLocalFactors = StepData_Factors());
 
   void writeToleranceZone(const Handle(XSControl_WorkSession)& theWS,
                           const Handle(XCAFDimTolObjects_GeomToleranceObject)& theObject,
@@ -272,7 +316,7 @@ protected:
                           const TDF_Label& theGeomTolL,
                           const Handle(StepDimTol_HArray1OfDatumSystemOrReference)& theDatumSystem,
                           const Handle(StepRepr_RepresentationContext)& theRC,
-                          const StepData_Factors& theLocalFactors);
+                          const StepData_Factors& theLocalFactors = StepData_Factors());
 
 private:
 

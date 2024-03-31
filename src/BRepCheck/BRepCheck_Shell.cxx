@@ -82,9 +82,9 @@ Standard_EXPORT Standard_Integer BRepCheck_Trace(const Standard_Integer phase) {
   return BRC_Trace;
 }
 
-void PrintShape(const TopoDS_Shape& theShape, const Standard_Integer upper) {
+void PrintShape(const TopoDS_Shape& theShape) {
   if (!theShape.IsNull()) {
-    Standard_Integer code = theShape.HashCode(upper);
+    size_t code = TopTools_ShapeMapHasher{}(theShape);
     std::cout << TopAbs::ShapeTypeToString (theShape.ShapeType()) << " : " << code
        << " " << TopAbs::ShapeOrientationToString(theShape.Orientation()) << std::endl;
   }
@@ -492,10 +492,9 @@ BRepCheck_Status BRepCheck_Shell::Orientation(const Standard_Boolean Update)
 #ifdef OCCT_DEBUG
   if (BRepCheck_Trace(0) > 1) {
     TopTools_DataMapIteratorOfDataMapOfShapeInteger itt(MapOfShapeOrientation);
-    Standard_Integer upper = MapOfShapeOrientation.NbBuckets();
     std::cout << "La map shape Orientation :" << std::endl;
     for (; itt.More(); itt.Next()) {
-      PrintShape(itt.Key(), upper);
+      PrintShape(itt.Key());
     }
     std::cout << std::endl;
   }
@@ -716,7 +715,7 @@ BRepCheck_Status BRepCheck_Shell::Orientation(const Standard_Boolean Update)
   if (BRepCheck_Trace(0) > 3)
   {
     std::cout << "Fref : " ;
-    PrintShape(Fref, MapOfShapeOrientation.NbBuckets());
+    PrintShape(Fref);
   }
 #endif
 
@@ -766,7 +765,7 @@ BRepCheck_Status BRepCheck_Shell::Orientation(const Standard_Boolean Update)
   if (BRepCheck_Trace(0) > 3)
   {
     std::cout << "    Fcur : " ;
-    PrintShape(Fcur, MapOfShapeOrientation.NbBuckets());
+    PrintShape(Fcur);
   }
 #endif
             for (edFcur.Init(Fcur, TopAbs_EDGE); edFcur.More(); edFcur.Next())
@@ -794,7 +793,7 @@ BRepCheck_Status BRepCheck_Shell::Orientation(const Standard_Boolean Update)
     Fcur.Orientation(orf);
     std::cout << "    Error : this face has been already examined " << std::endl;
     std::cout << "    Impossible to return it ";
-    PrintShape(Fcur, MapOfShapeOrientation.NbBuckets());
+    PrintShape(Fcur);
   }
 #endif
                 return myOstat;
@@ -809,7 +808,7 @@ BRepCheck_Status BRepCheck_Shell::Orientation(const Standard_Boolean Update)
     orf = (TopAbs_Orientation)MapOfShapeOrientation.Find(Fcur);
     Fcur.Orientation(orf);
     std::cout << "    Resulting Fcur is returned : " ;
-    PrintShape(Fcur, MapOfShapeOrientation.NbBuckets());
+    PrintShape(Fcur);
   }
 #endif
 

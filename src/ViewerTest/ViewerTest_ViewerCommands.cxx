@@ -153,26 +153,34 @@ static TCollection_AsciiString getModuleCanvasId()
 }
 #endif
 
-static Handle(ViewerTest_Window)& VT_GetWindow()
+namespace
 {
-  static Handle(ViewerTest_Window) aWindow;
-  return aWindow;
+  static Handle(ViewerTest_Window)& VT_GetWindow()
+  {
+    static Handle(ViewerTest_Window) aWindow;
+    return aWindow;
+  }
+
+  static Handle(Aspect_DisplayConnection)& GetDisplayConnection()
+  {
+    static Handle(Aspect_DisplayConnection) aDisplayConnection;
+    return aDisplayConnection;
+  }
+
+  using ViewerTest_ViewerCommandsViewMap = NCollection_DoubleMap <TCollection_AsciiString, Handle(V3d_View)>;
+  using ViewerTest_ViewerCommandsInteractiveContextMap = NCollection_DoubleMap <TCollection_AsciiString, Handle(AIS_InteractiveContext)>;
+  using ViewerTest_ViewerCommandsGraphicDriverMap = NCollection_DoubleMap <TCollection_AsciiString, Handle(Graphic3d_GraphicDriver)>;
+
+  static void SetDisplayConnection(const Handle(Aspect_DisplayConnection)& theDisplayConnection)
+  {
+    GetDisplayConnection() = theDisplayConnection;
+  }
+
+  static ViewerTest_ViewerCommandsInteractiveContextMap ViewerTest_myContexts;
+  static ViewerTest_ViewerCommandsGraphicDriverMap ViewerTest_myDrivers;
 }
 
-static Handle(Aspect_DisplayConnection)& GetDisplayConnection()
-{
-  static Handle(Aspect_DisplayConnection) aDisplayConnection;
-  return aDisplayConnection;
-}
-
-static void SetDisplayConnection (const Handle(Aspect_DisplayConnection)& theDisplayConnection)
-{
-  GetDisplayConnection() = theDisplayConnection;
-}
-
-NCollection_DoubleMap <TCollection_AsciiString, Handle(V3d_View)> ViewerTest_myViews;
-static NCollection_DoubleMap <TCollection_AsciiString, Handle(AIS_InteractiveContext)>  ViewerTest_myContexts;
-static NCollection_DoubleMap <TCollection_AsciiString, Handle(Graphic3d_GraphicDriver)> ViewerTest_myDrivers;
+ViewerTest_ViewerCommandsViewMap ViewerTest_myViews;
 
 static struct
 {
@@ -184,10 +192,10 @@ static struct
   //! Sets the gradient filling for a background in a default viewer.
   void SetDefaultGradient()
   {
-    for (NCollection_DoubleMap<TCollection_AsciiString, Handle (AIS_InteractiveContext)>::Iterator aCtxIter (ViewerTest_myContexts);
+    for (ViewerTest_ViewerCommandsInteractiveContextMap::Iterator aCtxIter (ViewerTest_myContexts);
          aCtxIter.More(); aCtxIter.Next())
     {
-      const Handle (V3d_Viewer)& aViewer = aCtxIter.Value()->CurrentViewer();
+      const Handle (V3d_Viewer)& aViewer = aCtxIter.Key2()->CurrentViewer();
       aViewer->SetDefaultBgGradientColors (GradientColor1, GradientColor2, FillMethod);
     }
   }
@@ -195,10 +203,10 @@ static struct
   //! Sets the color used for filling a background in a default viewer.
   void SetDefaultColor()
   {
-    for (NCollection_DoubleMap<TCollection_AsciiString, Handle (AIS_InteractiveContext)>::Iterator aCtxIter (ViewerTest_myContexts);
+    for (ViewerTest_ViewerCommandsInteractiveContextMap::Iterator aCtxIter (ViewerTest_myContexts);
          aCtxIter.More(); aCtxIter.Next())
     {
-      const Handle (V3d_Viewer)& aViewer = aCtxIter.Value()->CurrentViewer();
+      const Handle (V3d_Viewer)& aViewer = aCtxIter.Key2()->CurrentViewer();
       aViewer->SetDefaultBackgroundColor (FlatColor);
     }
   }
@@ -404,10 +412,10 @@ Handle(AIS_InteractiveContext) FindContextByView (const Handle(V3d_View)& theVie
 {
   Handle(AIS_InteractiveContext) anAISContext;
 
-  for (NCollection_DoubleMap<TCollection_AsciiString, Handle(AIS_InteractiveContext)>::Iterator
+  for (ViewerTest_ViewerCommandsInteractiveContextMap::Iterator
        anIter (ViewerTest_myContexts); anIter.More(); anIter.Next())
   {
-    if (anIter.Value()->CurrentViewer() == theView->Viewer())
+    if (anIter.Key2()->CurrentViewer() == theView->Viewer())
        return anIter.Key2();
   }
   return anAISContext;
@@ -424,14 +432,14 @@ Standard_Boolean IsWindowOverlapped (const Standard_Integer thePxLeft,
                                      const Standard_Integer thePxBottom,
                                      TCollection_AsciiString& theViewId)
 {
-  for(NCollection_DoubleMap <TCollection_AsciiString, Handle(V3d_View)>::Iterator
+  for(ViewerTest_ViewerCommandsViewMap::Iterator
       anIter(ViewerTest_myViews); anIter.More(); anIter.Next())
   {
     Standard_Integer aTop = 0,
       aLeft = 0,
       aRight = 0,
       aBottom = 0;
-    anIter.Value()->Window()->Position(aLeft, aTop, aRight, aBottom);
+    anIter.Key2()->Window()->Position(aLeft, aTop, aRight, aBottom);
     if ((thePxLeft >= aLeft && thePxLeft <= aRight && thePxTop >= aTop && thePxTop <= aBottom) ||
         (thePxLeft >= aLeft && thePxLeft <= aRight && thePxBottom >= aTop && thePxBottom <= aBottom) ||
         (thePxRight >= aLeft && thePxRight <= aRight && thePxTop >= aTop && thePxTop <= aBottom) ||
@@ -653,10 +661,10 @@ TCollection_AsciiString ViewerTest::ViewerInit (const ViewerTest_VinitParams& th
   // If it's the single view, we first look for empty context
   if (ViewerTest_myViews.IsEmpty() && !ViewerTest_myContexts.IsEmpty())
   {
-    NCollection_DoubleMap <TCollection_AsciiString, Handle(AIS_InteractiveContext)>::Iterator
+    ViewerTest_ViewerCommandsInteractiveContextMap::Iterator
       anIter(ViewerTest_myContexts);
     if (anIter.More())
-      ViewerTest::SetAISContext (anIter.Value());
+      ViewerTest::SetAISContext (anIter.Key2());
     a3DViewer = ViewerTest::GetAISContext()->CurrentViewer();
   }
   else if (ViewerTest_myContexts.IsBound1(aViewNames.GetViewerName()))
@@ -805,7 +813,7 @@ TCollection_AsciiString ViewerTest::ViewerInit (const ViewerTest_VinitParams& th
 //==============================================================================
 void ViewerTest::RedrawAllViews()
 {
-  NCollection_DoubleMap<TCollection_AsciiString, Handle(V3d_View)>::Iterator aViewIt(ViewerTest_myViews);
+  ViewerTest_ViewerCommandsViewMap::Iterator aViewIt(ViewerTest_myViews);
   for (; aViewIt.More(); aViewIt.Next())
   {
     const Handle(V3d_View)& aView = aViewIt.Key2();
@@ -1455,10 +1463,10 @@ static int VHLRType (Draw_Interpretor& , Standard_Integer argc, const char** arg
 #if defined(_WIN32) || defined(HAVE_XLIB)
 static TCollection_AsciiString FindViewIdByWindowHandle (Aspect_Drawable theWindowHandle)
 {
-  for (NCollection_DoubleMap<TCollection_AsciiString, Handle(V3d_View)>::Iterator
+  for (ViewerTest_ViewerCommandsViewMap::Iterator
        anIter(ViewerTest_myViews); anIter.More(); anIter.Next())
   {
-    Aspect_Drawable aWindowHandle = anIter.Value()->Window()->NativeHandle();
+    Aspect_Drawable aWindowHandle = anIter.Key2()->Window()->NativeHandle();
     if (aWindowHandle == theWindowHandle)
       return anIter.Key1();
   }
@@ -1572,12 +1580,12 @@ void ViewerTest::RemoveView (const TCollection_AsciiString& theViewName, const S
   {
     if (ViewerTest_myViews.Extent() > 1)
     {
-      for (NCollection_DoubleMap <TCollection_AsciiString, Handle(V3d_View)>::Iterator anIter (ViewerTest_myViews);
+      for (ViewerTest_ViewerCommandsViewMap::Iterator anIter (ViewerTest_myViews);
            anIter.More(); anIter.Next())
       {
         if (anIter.Key1() != theViewName)
         {
-          ActivateView (anIter.Value(), true);
+          ActivateView (anIter.Key2(), true);
           break;
         }
       }
@@ -1594,7 +1602,8 @@ void ViewerTest::RemoveView (const TCollection_AsciiString& theViewName, const S
     }
   }
 
-  // Delete view
+  // Delete view, name will be removed too
+  const TCollection_AsciiString aCopyString(theViewName);
   ViewerTest_myViews.UnBind1(theViewName);
   if (!aView->Window().IsNull())
   {
@@ -1616,11 +1625,11 @@ void ViewerTest::RemoveView (const TCollection_AsciiString& theViewName, const S
     {
       // Remove driver if there is no viewers that use it
       Standard_Boolean isRemoveDriver = Standard_True;
-      for(NCollection_DoubleMap<TCollection_AsciiString, Handle(AIS_InteractiveContext)>::Iterator
+      for(ViewerTest_ViewerCommandsInteractiveContextMap::Iterator
           anIter(ViewerTest_myContexts); anIter.More(); anIter.Next())
       {
         if (aCurrentContext != anIter.Key2() &&
-          aCurrentContext->CurrentViewer()->Driver() == anIter.Value()->CurrentViewer()->Driver())
+          aCurrentContext->CurrentViewer()->Driver() == anIter.Key2()->CurrentViewer()->Driver())
         {
           isRemoveDriver = Standard_False;
           break;
@@ -1639,7 +1648,7 @@ void ViewerTest::RemoveView (const TCollection_AsciiString& theViewName, const S
       ViewerTest_myContexts.UnBind2(aCurrentContext);
     }
   }
-  Message::SendInfo() << "3D View - " << theViewName << " was deleted.\n";
+  Message::SendInfo() << "3D View - " << aCopyString << " was deleted.\n";
   if (ViewerTest_EventManager::ToExitOnCloseView())
   {
     Draw_Interprete ("exit");
@@ -1663,7 +1672,7 @@ static int VClose (Draw_Interpretor& /*theDi*/,
     if (anArg.IsEqual ("ALL")
      || anArg.IsEqual ("*"))
     {
-      for (NCollection_DoubleMap<TCollection_AsciiString, Handle(V3d_View)>::Iterator anIter (ViewerTest_myViews);
+      for (ViewerTest_ViewerCommandsViewMap::Iterator anIter (ViewerTest_myViews);
            anIter.More(); anIter.Next())
       {
         aViewList.Append (anIter.Key1());
@@ -1808,13 +1817,13 @@ static int VViewList (Draw_Interpretor& theDi, Standard_Integer theArgsNb, const
     theDi << theArgVec[0] <<":\n";
   }
 
-  for (NCollection_DoubleMap <TCollection_AsciiString, Handle(Graphic3d_GraphicDriver)>::Iterator aDriverIter (ViewerTest_myDrivers);
+  for (ViewerTest_ViewerCommandsGraphicDriverMap::Iterator aDriverIter (ViewerTest_myDrivers);
        aDriverIter.More(); aDriverIter.Next())
   {
     if (isTreeView)
       theDi << aDriverIter.Key1() << ":\n";
 
-    for (NCollection_DoubleMap <TCollection_AsciiString, Handle(AIS_InteractiveContext)>::Iterator
+    for (ViewerTest_ViewerCommandsInteractiveContextMap::Iterator
       aContextIter(ViewerTest_myContexts); aContextIter.More(); aContextIter.Next())
     {
       if (aContextIter.Key1().Search(aDriverIter.Key1()) != -1)
@@ -1825,7 +1834,7 @@ static int VViewList (Draw_Interpretor& theDi, Standard_Integer theArgsNb, const
           theDi << " " << aContextName.Split(aDriverIter.Key1().Length() + 1) << ":\n";
         }
 
-        for (NCollection_DoubleMap <TCollection_AsciiString, Handle(V3d_View)>::Iterator aViewIter (ViewerTest_myViews);
+        for (ViewerTest_ViewerCommandsViewMap::Iterator aViewIter (ViewerTest_myViews);
              aViewIter.More(); aViewIter.Next())
         {
           if (aViewIter.Key1().Search(aContextIter.Key1()) != -1)
@@ -1833,7 +1842,7 @@ static int VViewList (Draw_Interpretor& theDi, Standard_Integer theArgsNb, const
             TCollection_AsciiString aViewName(aViewIter.Key1());
             if (isTreeView)
             {
-              if (aViewIter.Value() == ViewerTest::CurrentView())
+              if (aViewIter.Key2() == ViewerTest::CurrentView())
                 theDi << "  " << aViewName.Split(aContextIter.Key1().Length() + 1) << "(*)\n";
               else
                 theDi << "  " << aViewName.Split(aContextIter.Key1().Length() + 1) << "\n";
@@ -2370,7 +2379,7 @@ static void VProcessEvents (ClientData theDispX, int)
 {
   Display* aDispX = (Display* )theDispX;
   Handle(Aspect_DisplayConnection) aDispConn;
-  for (NCollection_DoubleMap<TCollection_AsciiString, Handle(Graphic3d_GraphicDriver)>::Iterator
+  for (ViewerTest_ViewerCommandsGraphicDriverMap::Iterator
        aDriverIter (ViewerTest_myDrivers); aDriverIter.More(); aDriverIter.Next())
   {
     const Handle(Aspect_DisplayConnection)& aDispConnTmp = aDriverIter.Key2()->GetDisplayConnection();
@@ -8277,7 +8286,7 @@ namespace
       aPrs->RemoveClipPlane (aClipPlane);
     }
 
-    for (NCollection_DoubleMap<TCollection_AsciiString, Handle(V3d_View)>::Iterator aViewIt(ViewerTest_myViews);
+    for (ViewerTest_ViewerCommandsViewMap::Iterator aViewIt(ViewerTest_myViews);
          aViewIt.More(); aViewIt.Next())
     {
       const Handle(V3d_View)& aView = aViewIt.Key2();
@@ -12755,10 +12764,10 @@ static int VManipulator (Draw_Interpretor& theDi,
   }
   if (!aViewAffinity.IsNull())
   {
-    for (NCollection_DoubleMap <TCollection_AsciiString, Handle(V3d_View)>::Iterator anIter (ViewerTest_myViews);
+    for (ViewerTest_ViewerCommandsViewMap::Iterator anIter (ViewerTest_myViews);
          anIter.More(); anIter.Next())
     {
-      ViewerTest::GetAISContext()->SetViewAffinity (aManipulator, anIter.Value(), false);
+      ViewerTest::GetAISContext()->SetViewAffinity (aManipulator, anIter.Key2(), false);
     }
     ViewerTest::GetAISContext()->SetViewAffinity (aManipulator, aViewAffinity, true);
   }
@@ -13676,6 +13685,12 @@ static int VViewCube (Draw_Interpretor& ,
           && anArg == "-axessphereradius")
     {
       aViewCube->SetAxesSphereRadius (Draw::Atof (theArgVec[++anArgIter]));
+    }
+    else if (anArg == "-orthopers")
+    {
+      const Handle(Graphic3d_TransformPers)& aTrsfPers = aViewCube->TransformPersistence();
+      Handle(Graphic3d_TransformPers) anOrthoPers = new Graphic3d_TransformPers (Graphic3d_TMF_TriedronPers | Graphic3d_TMF_OrthoPers, aTrsfPers->Corner2d(), aTrsfPers->Offset2d());
+      aViewCube->SetTransformPersistence (anOrthoPers);
     }
     else
     {
@@ -14974,6 +14989,7 @@ Displays interactive view manipulation object. Options:
  -axesSphereRadius Value  radius of the sphere (central point) of trihedron
  -fixedAnimation {0|1}    uninterruptible animation loop
  -duration Seconds        animation duration in seconds
+ -orthoPers               force orthographic projection persistence.
 )" /* [vviewcube] */);
 
   addCmd ("vcolorconvert", VColorConvert, /* [vcolorconvert] */ R"(

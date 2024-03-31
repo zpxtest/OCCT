@@ -475,7 +475,7 @@ Modify this parameter with:
 if(!Interface_Static::SetIVal("read.step.tessellated",1))  
 .. error .. 
 ~~~~
-Default value is 0 (On). 
+Default value is 1 (On). 
 
 @subsubsection occt_step_2_3_4 Performing the STEP file translation
 
@@ -1498,7 +1498,7 @@ It is necessary to call command *newmodel* to perform a new translation of the n
 
 @section occt_step_7 Reading from and writing to STEP
 
-The *STEPCAFControl* package (TKXDESTEP toolkit) provides tools to read and write STEP files (see XDE User's Guide). 
+The *STEPCAFControl* package (TKDESTEP toolkit) provides tools to read and write STEP files (see XDE User's Guide). 
 
 In addition to the translation of shapes implemented in basic translator, it provides the following: 
   * STEP assemblies, read as OCCT compounds by basic translator, are translated to XDE assemblies;
@@ -1653,6 +1653,13 @@ For each Saved View OCCT STEP Reader will retrieve the following attributes:
 - clipping planes (single plane of combination of planes);
 - front and back plane clipping.
 
+### User defined attributes
+Attributes are implemented in accordance with <a href="https://www.mbx-if.org/documents/rec_prac_user_def_attributes_v18.pdf">Recommended practices for User Defined Attributes</a> section 4, 5, 6.1-6.3 and 7.
+Attributes can be read for shapes at levels:
+- Part/Product Level;
+- Component Instances in an Assembly;
+- Geometry Level.
+
 @subsection occt_step_7_3 Writing to STEP
 
 The translation from XDE to STEP can be initialized as follows: 
@@ -1729,6 +1736,9 @@ Interface_Static::SetIVal("write.step.schema", 5));
 ~~~~
 ### Saved views
 Saved Views are not exported by OCCT.
+
+### User defined attributes
+Attributes can be imported from STEP.
 
 
 
